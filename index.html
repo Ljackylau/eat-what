@@ -115,6 +115,7 @@ h1{font-size:34px;margin:14px 0 4px;letter-spacing:-.5px;font-weight:800}
   display:flex;align-items:center;justify-content:center;
   font-size:88px;
 }
+.bigemoji{filter:drop-shadow(0 14px 30px rgba(0,0,0,.45));opacity:.95}
 .card .photo img{width:100%;height:100%;object-fit:cover;display:block}
 .card .photo::after{
   content:"";position:absolute;inset:0;
@@ -999,18 +1000,19 @@ function buildCard(r, rank, isTop){
   const openCls = r.openNow === true ? 'open' : r.openNow === false ? 'shut' : '';
   const d = fmtDist(distKm(S.center, r));
   const hasReviewBlock = wantPreview || (r.reviews && r.reviews.length);
+  const bg = cuisineBg(r);
 
   card.innerHTML = `
     <div class="stamp no">跳過</div>
     <div class="stamp yes">${{ openrice:'開飯喇', gmaps:'睇 Google', sheet:'睇詳情' }[rightAction()]}</div>
-    <div class="photo">
+    <div class="photo" style="background:${bg}">
       <div class="rank${noRatings && r.openriceId ? ' or' : ''}">${
         !noRatings         ? `🔥 全區第 ${rank} 名`
       : r.openriceId       ? '🍚 開飯喇有記錄'
       :                      `📍 第 ${rank} 間`
       }</div>
       ${openTxt ? `<div class="openbadge ${openCls}">${openTxt}</div>` : ''}
-      ${r.photoUrl ? `<img src="${esc(r.photoUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<span>${r.emoji || '🍽️'}</span>`}
+      ${r.photoUrl ? `<img src="${esc(r.photoUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<span class="bigemoji">${r.emoji || '🍽️'}</span>`}
       <div class="cardinfo">
         <div class="nm">${esc(r.name)}</div>
         <div class="metarow">
@@ -1036,6 +1038,18 @@ function buildCard(r, rank, isTop){
     }).catch(() => {});
   }
   return card;
+}
+
+/* 冇相嘅卡片：由餐廳名 + 菜系整一個穩定嘅漸變底色，
+   令每張卡有分別，唔會成疊都係同一嚿灰。 */
+function cuisineBg(r){
+  let h = 0;
+  const key = (r.cuisine || '') + (r.name || '');
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  const hue = h % 360;
+  return `linear-gradient(150deg,
+    hsl(${hue} 42% 26%) 0%,
+    hsl(${(hue + 28) % 360} 38% 15%) 100%)`;
 }
 
 function renderMiniReviews(revs){
