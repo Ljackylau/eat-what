@@ -811,15 +811,26 @@ const OsmProvider = {
           .join('')
       + ');out center 400;';
 
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(q),
-    });
-    if (!res.ok) throw new Error(res.status === 429
-      ? 'Overpass 公共伺服器而家好忙（429），等半分鐘再試'
-      : 'Overpass ' + res.status + '（免費公共伺服器，偶爾會唔穩定）');
-    const data = await res.json();
+    // 免費公共伺服器會塞車，逐個鏡像試，邊個得就用邊個
+    const MIRRORS = [
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass.private.coffee/api/interpreter',
+    ];
+    let data = null, lastErr = '';
+    for (const url of MIRRORS){
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(q),
+        });
+        if (!res.ok){ lastErr = url.split('/')[2] + ' 回應 ' + res.status; continue; }
+        data = await res.json();
+        break;
+      } catch (e){ lastErr = url.split('/')[2] + ' 連唔到'; }
+    }
+    if (!data) throw new Error('三個地圖伺服器都試過（最後：' + lastErr + '）');
 
     const out = (data.elements || []).map(e => {
       const t = e.tags || {};
@@ -885,7 +896,9 @@ function pickProvider(){
   if (CONFIG.DATA_SOURCE === 'mock')   return MockProvider;
   if (CONFIG.DATA_SOURCE === 'osm')    return OsmProvider;
   if (CONFIG.DATA_SOURCE === 'google') return GoogleProvider;
-  return CONFIG.GOOGLE_API_KEY ? GoogleProvider : MockProvider;
+  // auto：有 Google key 就用 Google，冇就用 OpenStreetMap（真實餐廳，唔使 key）。
+  // 示範數據只會喺你明確撳「示範模式試玩」嗰陣先出現。
+  return CONFIG.GOOGLE_API_KEY ? GoogleProvider : OsmProvider;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1039,7 +1052,8 @@ function swipeLeft(card){
 function rightAction(){
   const a = CONFIG.SWIPE_RIGHT_ACTION;
   if (a === 'gmaps' || a === 'openrice') return a;
-  return S.provider.noRatings ? 'gmaps' : 'sheet';
+  // 冇星級冇評論（OSM）就冇嘢好喺 app 內顯示 → 跳 OpenRice（香港最實用）
+  return S.provider.noRatings ? 'openrice' : 'sheet';
 }
 function goesToMaps(){ return rightAction() !== 'sheet'; }
 
@@ -1319,7 +1333,8 @@ async function runSearch(){
     : `喺 ${S.radiusKm} 公里內搵緊高分餐廳…`;
   try {
     S.list = await S.provider.search(S.center, S.radiusKm);
-    S.idx = 0; S.history = []; animating = false;
+    S.idx = 0; S.history = []; animating = false; S.lastFailed = false;
+    $('#btnAgain').textContent = '再揀過範圍';
     if (!S.list.length){
       $('#endTxt').textContent = `${S.radiusKm} 公里內搵唔到餐廳，試下擴大範圍。`;
       show('s-end');
@@ -1329,7 +1344,12 @@ async function runSearch(){
     renderDeck();
     show('s-swipe');
   } catch (err) {
-    $('#endTxt').textContent = '搵餐廳出咗事：' + err.message;
+    S.lastFailed = true;
+    $('#endTxt').innerHTML = '搵唔到餐廳：<br><span style="color:#ffc9d2">' + esc(err.message) + '</span>'
+      + (S.provider.noRatings
+        ? '<br><br><span style="font-size:13px">OpenStreetMap 用緊免費公共伺服器，繁忙時會頂唔順，等十幾秒再試通常就得。</span>'
+        : '');
+    $('#btnAgain').textContent = '↻ 再試一次';
     show('s-end');
   }
 }
@@ -1353,7 +1373,8 @@ $('#btnYes').onclick  = () => swipeRight();
 $('#btnUndo').onclick = undo;
 $('#btnMap').onclick  = () => openMap();
 $('#btnReset').onclick = () => show('s-dist');
-$('#btnAgain').onclick = () => show('s-dist');
+// 搵嘢失敗就重試同一個搜尋，正常睇完就返去揀範圍
+$('#btnAgain').onclick = () => S.lastFailed ? runSearch() : show('s-dist');
 $('#sheetClose').onclick = closeSheet;
 $('#sheetNav').onclick = () => openMap(sheetTarget);
 $('#sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
