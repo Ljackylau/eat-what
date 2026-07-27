@@ -115,7 +115,11 @@ h1{font-size:34px;margin:14px 0 4px;letter-spacing:-.5px;font-weight:800}
   display:flex;align-items:center;justify-content:center;
   font-size:88px;
 }
-.bigemoji{filter:drop-shadow(0 14px 30px rgba(0,0,0,.45));opacity:.95}
+.bigemoji{
+  font-size:118px;line-height:1;
+  margin-bottom:52px;               /* 避開下面資訊區，視覺上先真係置中 */
+  filter:drop-shadow(0 16px 34px rgba(0,0,0,.5));opacity:.96;
+}
 .card .photo img{width:100%;height:100%;object-fit:cover;display:block}
 .card .photo::after{
   content:"";position:absolute;inset:0;
