@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f0d14">
+<title>今餐食乜 — 附近餐廳 Swipe</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍜</text></svg>">
+<style>
+:root{
+  --bg:#0f0d14;
+  --bg2:#17141f;
+  --card:#ffffff;
+  --card-ink:#1a1720;
+  --muted:#7d7791;
+  --line:rgba(255,255,255,.09);
+  --accent:#ff5470;
+  --accent2:#ffb648;
+  --ok:#3ddc97;
+  --shadow:0 18px 50px rgba(0,0,0,.55);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  background:radial-gradient(120% 80% at 50% -10%,#2a2136 0%,var(--bg) 55%) fixed;
+  color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang HK","Noto Sans HK","Helvetica Neue",sans-serif;
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+
+/* ---------- 通用畫面 ---------- */
+.screen{
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;
+  padding:calc(var(--safe-t) + 16px) 20px calc(var(--safe-b) + 20px);
+  opacity:0;pointer-events:none;transform:scale(.98);
+  transition:opacity .28s ease,transform .28s ease;
+}
+.screen.on{opacity:1;pointer-events:auto;transform:none}
+
+/* ---------- 開場 ---------- */
+#s-intro{align-items:center;justify-content:center;text-align:center;gap:8px}
+.logo{font-size:76px;line-height:1;filter:drop-shadow(0 10px 24px rgba(255,84,112,.4));animation:bob 3s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-10px) rotate(4deg)}}
+h1{font-size:34px;margin:14px 0 4px;letter-spacing:-.5px;font-weight:800}
+.sub{color:var(--muted);font-size:15px;line-height:1.65;max-width:300px;margin:0 0 6px}
+.btn{
+  background:linear-gradient(135deg,var(--accent),#ff7a52);
+  color:#fff;font-weight:700;font-size:17px;
+  padding:16px 40px;border-radius:100px;
+  box-shadow:0 12px 30px rgba(255,84,112,.35);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.btn:active{transform:scale(.96)}
+.btn.ghost{background:rgba(255,255,255,.07);box-shadow:none;font-size:15px;padding:13px 26px;font-weight:600}
+.btn:disabled{opacity:.5;pointer-events:none}
+.mt{margin-top:26px}
+.fine{font-size:12px;color:#5c5670;margin-top:22px;line-height:1.6}
+
+/* ---------- 距離選擇 ---------- */
+#s-dist{justify-content:center;gap:14px}
+.h2{font-size:26px;font-weight:800;margin:0 0 2px}
+.hint{color:var(--muted);font-size:14px;margin:0 0 18px}
+.dist{
+  display:flex;align-items:center;gap:16px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);
+  border-radius:20px;padding:18px 20px;width:100%;text-align:left;
+  transition:transform .15s,border-color .2s,background .2s;
+}
+.dist:active{transform:scale(.975)}
+.dist.sel{border-color:var(--accent);background:rgba(255,84,112,.12)}
+.dist .ic{font-size:28px;width:38px;text-align:center}
+.dist .t{font-size:18px;font-weight:700}
+.dist .d{font-size:13px;color:var(--muted);margin-top:3px}
+.loc-chip{
+  display:inline-flex;align-items:center;gap:7px;align-self:flex-start;
+  background:rgba(61,220,151,.12);color:var(--ok);
+  font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:100px;margin-bottom:20px;
+}
+
+/* ---------- 載入 ---------- */
+#s-load{align-items:center;justify-content:center;gap:20px}
+.spin{width:52px;height:52px;border:4px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#loadTxt{color:var(--muted);font-size:15px}
+
+/* ---------- 主畫面 ---------- */
+#s-swipe{padding:calc(var(--safe-t) + 10px) 14px calc(var(--safe-b) + 12px)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 10px;flex:0 0 auto}
+.brand{font-weight:800;font-size:17px;display:flex;align-items:center;gap:7px}
+.pill{
+  background:rgba(255,255,255,.07);border:1px solid var(--line);
+  font-size:12.5px;font-weight:600;color:#cfc9dd;
+  padding:7px 13px;border-radius:100px;display:flex;align-items:center;gap:6px;
+}
+.pill:active{background:rgba(255,255,255,.14)}
+#counter{font-variant-numeric:tabular-nums}
+
+.deck{position:relative;flex:1 1 auto;min-height:0;perspective:1200px}
+.card{
+  position:absolute;inset:0;
+  background:var(--card);color:var(--card-ink);
+  border-radius:26px;overflow:hidden;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;
+  will-change:transform;touch-action:pan-y;
+  user-select:none;-webkit-user-select:none;
+}
+.card .photo{
+  position:relative;flex:1 1 auto;min-height:0;
+  background:linear-gradient(150deg,#3a3050,#221c30);
+  display:flex;align-items:center;justify-content:center;
+  font-size:88px;
+}
+.card .photo img{width:100%;height:100%;object-fit:cover;display:block}
+.card .photo::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.35) 34%,transparent 62%);
+}
+.rank{
+  position:absolute;top:14px;left:14px;z-index:3;
+  background:linear-gradient(135deg,var(--accent2),#ff8a3d);color:#3b2400;
+  font-weight:800;font-size:12.5px;padding:6px 12px;border-radius:100px;
+  box-shadow:0 6px 16px rgba(0,0,0,.3);
+}
+.openbadge{
+  position:absolute;top:14px;right:14px;z-index:3;
+  font-weight:700;font-size:12px;padding:6px 12px;border-radius:100px;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);color:#fff;
+}
+.openbadge.open{color:#5ff0b0}
+.openbadge.shut{color:#ff9e9e}
+.cardinfo{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:18px 20px 20px;color:#fff}
+.cardinfo .nm{font-size:27px;font-weight:800;line-height:1.2;letter-spacing:-.4px;
+  text-shadow:0 2px 14px rgba(0,0,0,.6);word-break:break-word}
+.metarow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:13.5px}
+.tag{background:rgba(255,255,255,.18);backdrop-filter:blur(10px);padding:5px 11px;border-radius:100px;font-weight:600}
+.tag.star{background:rgba(255,182,72,.92);color:#3b2400}
+.tag.near{background:rgba(255,255,255,.92);color:#1a1720}
+.tag.or{background:rgba(255,102,0,.92);color:#fff}
+
+.reviews{flex:0 0 auto;background:#fff;padding:13px 18px 15px;border-top:1px solid #efedf3}
+.rvhead{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:1.4px;margin-bottom:9px}
+.rv{display:flex;gap:9px;font-size:12.8px;line-height:1.5;color:#4a4458;margin-bottom:8px}
+.rv:last-child{margin-bottom:0}
+.rv .s{flex:0 0 auto;color:var(--accent2);font-size:11px;padding-top:1px;letter-spacing:-1px}
+.rv .tx{flex:1;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.rvskel{height:13px;background:linear-gradient(90deg,#eee,#f7f7f9,#eee);background-size:200% 100%;animation:sk 1.2s infinite;border-radius:4px;margin-bottom:9px}
+@keyframes sk{to{background-position:-200% 0}}
+
+/* swipe 標籤 */
+.stamp{
+  position:absolute;top:64px;z-index:5;
+  font-size:26px;font-weight:900;letter-spacing:1px;
+  padding:9px 18px;border-radius:12px;border:4px solid;
+  opacity:0;transition:opacity .1s;pointer-events:none;
+}
+.stamp.no{left:20px;transform:rotate(-16deg);color:#ff4d6d;border-color:#ff4d6d;background:rgba(255,77,109,.12)}
+.stamp.yes{right:20px;transform:rotate(16deg);color:#3ddc97;border-color:#3ddc97;background:rgba(61,220,151,.12)}
+
+.actions{display:flex;align-items:center;justify-content:center;gap:16px;padding-top:14px;flex:0 0 auto}
+.ab{
+  width:60px;height:60px;border-radius:50%;
+  background:#fff;color:#1a1720;font-size:25px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 22px rgba(0,0,0,.4);
+  transition:transform .15s;
+}
+.ab:active{transform:scale(.88)}
+.ab.sm{width:46px;height:46px;font-size:18px;background:rgba(255,255,255,.1);color:#fff;box-shadow:none}
+.ab.no{color:#ff4d6d}
+.ab.yes{color:#3ddc97}
+.swipehint{text-align:center;color:#5c5670;font-size:11.5px;padding-top:9px;flex:0 0 auto}
+
+/* ---------- 詳情 sheet ---------- */
+#sheet{
+  position:fixed;inset:0;z-index:60;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+#sheet.on{opacity:1;pointer-events:auto}
+.sheetbody{
+  position:absolute;left:0;right:0;bottom:0;max-height:92%;
+  background:var(--bg2);border-radius:26px 26px 0 0;
+  transform:translateY(100%);transition:transform .32s cubic-bezier(.22,1,.36,1);
+  display:flex;flex-direction:column;
+  padding-bottom:calc(var(--safe-b) + 8px);
+}
+#sheet.on .sheetbody{transform:none}
+.grip{width:42px;height:4.5px;border-radius:99px;background:rgba(255,255,255,.25);margin:11px auto 4px;flex:0 0 auto}
+.sheetscroll{overflow-y:auto;padding:12px 22px 20px;-webkit-overflow-scrolling:touch}
+.sheetscroll h3{margin:0 0 6px;font-size:25px;font-weight:800;letter-spacing:-.4px}
+.kv{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14.5px;line-height:1.55}
+.kv .k{flex:0 0 22px;font-size:16px;opacity:.85}
+.kv .v{flex:1;color:#ddd8e8;word-break:break-word}
+.kv a{color:#9fd4ff;text-decoration:none}
+.secttl{font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--accent);margin:22px 0 12px}
+.frv{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:11px}
+.frv .top{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.frv .av{width:29px;height:29px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex:0 0 auto}
+.frv .who{font-size:13.5px;font-weight:700}
+.frv .when{font-size:11.5px;color:var(--muted);margin-top:1px}
+.frv .body{font-size:14px;line-height:1.65;color:#cfc9dd;white-space:pre-wrap}
+.bigstat{display:flex;gap:10px;margin:16px 0 4px}
+.bs{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:16px;padding:13px;text-align:center}
+.bs .n{font-size:21px;font-weight:800}
+.bs .l{font-size:11px;color:var(--muted);margin-top:3px}
+.sheetfoot{padding:12px 22px 4px;display:flex;gap:10px;flex:0 0 auto;border-top:1px solid var(--line)}
+.sheetfoot .btn{flex:1;padding:15px 0;text-align:center;font-size:15.5px}
+
+/* ---------- 完場 ---------- */
+#s-end{align-items:center;justify-content:center;text-align:center;gap:6px}
+
+/* ---------- 錯誤 ---------- */
+.err{background:rgba(255,84,112,.12);border:1px solid rgba(255,84,112,.35);
+  border-radius:16px;padding:16px;font-size:14px;line-height:1.65;color:#ffc9d2;max-width:340px;margin:14px 0}
+
+.demo-tag{
+  display:inline-block;margin-top:6px;
+  background:rgba(255,182,72,.16);color:var(--accent2);
+  font-size:10.5px;font-weight:800;padding:3px 11px;border-radius:100px;
+}
+
+/* ---------- 港鐵站揀站 ---------- */
+#s-mtr{padding-bottom:0}
+.mtrhead{flex:0 0 auto}
+.searchwrap{position:relative;margin:14px 0 12px;flex:0 0 auto}
+#mtrSearch{
+  width:100%;padding:15px 44px 15px 46px;font-size:16px;
+  background:rgba(255,255,255,.07);border:1px solid var(--line);
+  border-radius:16px;color:#fff;outline:none;font-family:inherit;
+}
+#mtrSearch:focus{border-color:var(--accent);background:rgba(255,255,255,.1)}
+#mtrSearch::placeholder{color:#5c5670}
+.searchwrap .mag{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:17px;opacity:.6;pointer-events:none}
+#mtrClear{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:32px;height:32px;border-radius:50%;font-size:15px;color:var(--muted);display:none}
+#mtrClear.on{display:block}
+
+.linefilter{display:flex;gap:7px;overflow-x:auto;padding-bottom:12px;flex:0 0 auto;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.linefilter::-webkit-scrollbar{display:none}
+.lf{flex:0 0 auto;padding:7px 14px;border-radius:100px;font-size:13px;font-weight:700;
+  background:rgba(255,255,255,.07);border:1px solid var(--line);white-space:nowrap;transition:all .15s}
+.lf.sel{color:#fff;border-color:transparent}
+.lf .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+
+.stationlist{flex:1 1 auto;overflow-y:auto;min-height:0;
+  padding-bottom:calc(var(--safe-b) + 16px);-webkit-overflow-scrolling:touch}
+.grouphd{font-size:11px;font-weight:800;letter-spacing:1.3px;color:var(--muted);
+  padding:14px 4px 8px;position:sticky;top:0;background:var(--bg);z-index:2}
+.stn{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:14px 14px;border-radius:14px;transition:background .15s;
+}
+.stn:active{background:rgba(255,255,255,.09)}
+.stn .bars{display:flex;flex-direction:column;gap:2.5px;flex:0 0 auto}
+.stn .bar{width:4px;height:13px;border-radius:2px}
+.stn .nm{font-size:16.5px;font-weight:700;flex:1}
+.stn .ln{font-size:11.5px;color:var(--muted);margin-top:2px}
+.stn .go{color:#4a4458;font-size:16px}
+.recent{background:rgba(255,84,112,.09)}
+.empty{text-align:center;color:var(--muted);font-size:14px;padding:40px 20px;line-height:1.7}
+@media(min-width:520px){
+  .screen{padding-left:max(20px,calc(50% - 230px));padding-right:max(20px,calc(50% - 230px))}
+  #s-swipe{padding-left:max(14px,calc(50% - 215px));padding-right:max(14px,calc(50% - 215px))}
+  .sheetbody{max-width:460px;left:50%;transform:translate(-50%,100%);border-radius:26px 26px 0 0}
+  #sheet.on .sheetbody{transform:translate(-50%,0)}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ 1. 開場 ══════════ -->
+<section class="screen on" id="s-intro">
+  <div class="logo">🍜</div>
+  <h1>今餐食乜</h1>
+  <p class="sub">唔使再諗。畀我搵出你附近評分最高嘅 50 間餐廳，左掃跳過、右掃睇詳情。</p>
+  <button class="btn mt" id="btnMtr">🚇 揀港鐵站</button>
+  <button class="btn ghost" id="btnStart" style="margin-top:12px">📍 用我而家嘅位置</button>
+  <button class="btn ghost" id="btnDemo" style="margin-top:10px">🧪 示範模式試玩</button>
+  <p class="fine">揀港鐵站唔使任何權限，喺屋企都 plan 到<br>用 GPS 定位嘅話，位置只留喺你部手機</p>
+</section>
+
+<!-- ══════════ 1b. 揀港鐵站 ══════════ -->
+<section class="screen" id="s-mtr">
+  <div class="mtrhead">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="ab sm" id="btnMtrBack" style="width:38px;height:38px;font-size:16px">←</button>
+      <div>
+        <div class="h2" style="font-size:23px">你喺邊個站？</div>
+        <p class="hint" style="margin:2px 0 0">全港 98 個港鐵站</p>
+      </div>
+    </div>
+  </div>
+  <div class="searchwrap">
+    <span class="mag">🔍</span>
+    <input id="mtrSearch" type="search" placeholder="打站名，例如 旺角、中環…"
+           autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="mtrClear">✕</button>
+  </div>
+  <div class="linefilter" id="lineFilter"></div>
+  <div class="stationlist" id="stationList"></div>
+</section>
+
+<!-- ══════════ 2. 距離 ══════════ -->
+<section class="screen" id="s-dist">
+  <div class="loc-chip" id="locChip">📍 已鎖定你嘅位置</div>
+  <div class="h2">想行幾遠？</div>
+  <p class="hint">揀完即刻幫你搵評分最高嘅餐廳</p>
+  <button class="dist" data-km="1"><div class="ic">🚶</div><div><div class="t">1 公里內</div><div class="d">行路 10 分鐘到 · 樓下解決</div></div></button>
+  <button class="dist" data-km="5"><div class="ic">🚌</div><div><div class="t">5 公里內</div><div class="d">搭車幾個站 · 選擇多啲</div></div></button>
+  <button class="dist" data-km="10"><div class="ic">🚗</div><div><div class="t">10 公里內</div><div class="d">揸車 / 搭鐵 · 值得專程去</div></div></button>
+  <button class="btn ghost" id="btnBackIntro" style="margin-top:24px;align-self:center">← 返回</button>
+</section>
+
+<!-- ══════════ 3. 載入 ══════════ -->
+<section class="screen" id="s-load">
+  <div class="spin"></div>
+  <div id="loadTxt">搵緊附近餐廳…</div>
+</section>
+
+<!-- ══════════ 4. 主畫面 ══════════ -->
+<section class="screen" id="s-swipe">
+  <div class="topbar">
+    <div class="brand">🍜 今餐食乜</div>
+    <button class="pill" id="counter">0 / 0</button>
+    <button class="pill" id="btnReset">↻ 重揀</button>
+  </div>
+  <div class="deck" id="deck"></div>
+  <div class="actions">
+    <button class="ab sm" id="btnUndo" title="返回上一間">↩</button>
+    <button class="ab no" id="btnNo" title="下一間">✕</button>
+    <button class="ab yes" id="btnYes" title="睇詳情">★</button>
+    <button class="ab sm" id="btnMap" title="開地圖">🗺</button>
+  </div>
+  <div class="swipehint" id="swipeHint">← 左掃 下一間　·　右掃 睇詳情 →</div>
+</section>
+
+<!-- ══════════ 5. 完場 ══════════ -->
+<section class="screen" id="s-end">
+  <div class="logo">🥢</div>
+  <h1 style="font-size:27px">睇晒喇！</h1>
+  <p class="sub" id="endTxt">呢個範圍嘅餐廳全部睇完。試下擴大範圍？</p>
+  <button class="btn mt" id="btnAgain">再揀過範圍</button>
+</section>
+
+<!-- ══════════ 詳情 sheet ══════════ -->
+<div id="sheet">
+  <div class="sheetbody">
+    <div class="grip"></div>
+    <div class="sheetscroll" id="sheetScroll"></div>
+    <div class="sheetfoot">
+      <button class="btn ghost" id="sheetClose">關閉</button>
+      <button class="btn" id="sheetNav">🧭 帶我去</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   設定區 — 之後攞到 Google key，改呢度就得
+   ═══════════════════════════════════════════════════════════ */
+const CONFIG = {
+  // 貼你嘅 Google Places API key 入嚟（記得喺 Google Cloud 設 HTTP referrer 限制）
+  GOOGLE_API_KEY: '',
+  // 數據來源：
+  //   'auto'   = 有 key 就用 Google，冇就用示範數據
+  //   'google' = Google Places（有星級、評論、相片，要 key + 信用卡）
+  //   'osm'    = OpenStreetMap（完全免費、唔使 key，但冇星級冇評論，按距離排）
+  //   'mock'   = 示範數據
+  DATA_SOURCE: 'auto',
+  MAX_RESULTS: 50,
+
+  // 右掃做乜：
+  //   'sheet'    = 喺 app 入面彈出詳情頁（要 Google API 攞評論）
+  //   'gmaps'    = 直接跳去 Google Maps 睇（零 API 成本，評論相片全部有，仲多過 API）
+  //   'openrice' = 直接跳去 OpenRice 睇（零 API 成本；OSM 帶住 ref:openrice 就直達
+  //                嗰間餐廳個頁，冇就跳去 OpenRice 搜尋結果）
+  SWIPE_RIGHT_ACTION: 'sheet',
+
+  // ── 慳 API 錢嘅設定（詳見 README「點樣唔好燒錢」）──
+  // 評論屬 Google 最貴嘅 Enterprise+Atmosphere SKU：每月只得 1,000 次免費，
+  // 之後 US$40 / 1,000 次。以下三個掣控制幾時先去攞評論。
+
+  // true  = 卡片上直接顯示 Top 3 評論（好睇，但每掃一間就用一次額度）
+  // false = 卡片唔顯示評論，右掃睇詳情先至攞（最慳，用量可以少 5-10 倍）
+  PREVIEW_REVIEWS: true,
+
+  // 搜尋結果快取幾耐（分鐘）。同一區搵嚟搵去都係嗰幾十間，
+  // 快取期內唔會再 call 搜尋 API。預設 6 個鐘。
+  SEARCH_CACHE_MIN: 360,
+
+  // 評論快取幾耐（日）。餐廳評論唔會日日變，快取愈耐愈慳。
+  REVIEW_CACHE_DAYS: 30,
+};
+
+/* ═══════════════════════════════════════════════════════════
+   港鐵站數據 — 98 個站，座標由 OpenStreetMap 擷取後人手核對線路
+   ═══════════════════════════════════════════════════════════ */
+const MTR_LINES = [["荃灣綫","#E2231A"],["港島綫","#0075C2"],["觀塘綫","#00AB4E"],["將軍澳綫","#7D499D"],["東涌綫","#F7943E"],["機場快綫","#00888A"],["東鐵綫","#53B7E8"],["屯馬綫","#923011"],["南港島綫","#BAC429"],["迪士尼綫","#F550A2"]];
+// [站名, 緯度, 經度, [所屬線路 index]]
+const MTR_STATIONS = [
+  ["中環",22.28191,114.1592,[0,1]],
+  ["金鐘",22.27863,114.16552,[0,1,6,8]],
+  ["尖沙咀",22.29726,114.1724,[0]],
+  ["佐敦",22.30467,114.17175,[0]],
+  ["油麻地",22.3128,114.17058,[0,2]],
+  ["旺角",22.31931,114.16937,[0,2]],
+  ["太子",22.32445,114.1683,[0,2]],
+  ["深水埗",22.33073,114.16234,[0]],
+  ["長沙灣",22.33551,114.15616,[0]],
+  ["荔枝角",22.3374,114.14841,[0]],
+  ["美孚",22.33841,114.13787,[0,7]],
+  ["荔景",22.34832,114.12606,[0,4]],
+  ["葵芳",22.35684,114.1278,[0]],
+  ["葵興",22.36317,114.1312,[0]],
+  ["大窩口",22.37082,114.12501,[0]],
+  ["荃灣",22.37374,114.11764,[0]],
+  ["堅尼地城",22.28136,114.12842,[1]],
+  ["香港大學",22.28398,114.13551,[1]],
+  ["西營盤",22.28543,114.14264,[1]],
+  ["上環",22.28684,114.15216,[1]],
+  ["灣仔",22.27758,114.17286,[1]],
+  ["銅鑼灣",22.27939,114.18374,[1]],
+  ["天后",22.28228,114.19181,[1]],
+  ["炮台山",22.28756,114.19331,[1]],
+  ["北角",22.29091,114.20075,[1,3]],
+  ["鰂魚涌",22.28817,114.20899,[1,3]],
+  ["太古",22.28464,114.21632,[1]],
+  ["西灣河",22.28163,114.22229,[1]],
+  ["筲箕灣",22.27917,114.22884,[1]],
+  ["杏花邨",22.27666,114.23974,[1]],
+  ["柴灣",22.26445,114.23704,[1]],
+  ["黃埔",22.30495,114.18954,[2]],
+  ["何文田",22.30952,114.18262,[2,7]],
+  ["石硤尾",22.33202,114.16885,[2]],
+  ["九龍塘",22.33694,114.1763,[2,6]],
+  ["樂富",22.33802,114.18723,[2]],
+  ["黃大仙",22.34157,114.19401,[2]],
+  ["鑽石山",22.3397,114.20144,[2,7]],
+  ["彩虹",22.33499,114.20882,[2]],
+  ["九龍灣",22.32347,114.21409,[2]],
+  ["牛頭角",22.31545,114.21896,[2]],
+  ["觀塘",22.31213,114.22651,[2]],
+  ["藍田",22.30689,114.23308,[2]],
+  ["油塘",22.29779,114.23716,[2,3]],
+  ["調景嶺",22.30408,114.25237,[2,3]],
+  ["將軍澳",22.30736,114.25992,[3]],
+  ["坑口",22.31557,114.26444,[3]],
+  ["寶琳",22.32249,114.2579,[3]],
+  ["康城",22.29556,114.26875,[3]],
+  ["香港",22.28472,114.15807,[4,5]],
+  ["九龍",22.30493,114.1616,[4,5]],
+  ["奧運",22.3177,114.16028,[4]],
+  ["南昌",22.32639,114.15367,[4,7]],
+  ["青衣",22.3585,114.10675,[4,5]],
+  ["欣澳",22.33198,114.02891,[4,9]],
+  ["東涌",22.28924,113.94137,[4]],
+  ["機場",22.31592,113.93655,[5]],
+  ["博覽館",22.32199,113.94222,[5]],
+  ["會展",22.28161,114.17569,[6]],
+  ["紅磡",22.3029,114.18225,[6,7]],
+  ["旺角東",22.32219,114.17271,[6]],
+  ["大圍",22.37305,114.17845,[6,7]],
+  ["沙田",22.383,114.18774,[6]],
+  ["火炭",22.39529,114.19811,[6]],
+  ["馬場",22.40048,114.2029,[6]],
+  ["大學",22.41357,114.2101,[6]],
+  ["大埔墟",22.44465,114.17063,[6]],
+  ["太和",22.45107,114.16106,[6]],
+  ["粉嶺",22.49199,114.13881,[6]],
+  ["上水",22.50116,114.12803,[6]],
+  ["羅湖",22.52818,114.11334,[6]],
+  ["落馬洲",22.51446,114.06568,[6]],
+  ["屯門",22.39495,113.97311,[7]],
+  ["兆康",22.41186,113.97882,[7]],
+  ["天水圍",22.4477,114.00426,[7]],
+  ["朗屏",22.44767,114.02545,[7]],
+  ["元朗",22.44622,114.03529,[7]],
+  ["錦上路",22.4348,114.06342,[7]],
+  ["荃灣西",22.36835,114.10993,[7]],
+  ["柯士甸",22.30424,114.1666,[7]],
+  ["尖東",22.29556,114.17507,[7]],
+  ["土瓜灣",22.3168,114.18759,[7]],
+  ["宋皇臺",22.3259,114.19133,[7]],
+  ["啟德",22.3305,114.19937,[7]],
+  ["顯徑",22.36396,114.17081,[7]],
+  ["車公廟",22.37477,114.18618,[7]],
+  ["沙田圍",22.37703,114.19499,[7]],
+  ["第一城",22.38288,114.20355,[7]],
+  ["石門",22.38766,114.20832,[7]],
+  ["大水坑",22.4086,114.2228,[7]],
+  ["恆安",22.41751,114.22575,[7]],
+  ["馬鞍山",22.42482,114.23161,[7]],
+  ["烏溪沙",22.42913,114.2439,[7]],
+  ["海洋公園",22.24858,114.17437,[8]],
+  ["黃竹坑",22.24786,114.16751,[8]],
+  ["利東",22.24219,114.15583,[8]],
+  ["海怡半島",22.24284,114.14875,[8]],
+  ["迪士尼",22.31539,114.04514,[9]]
+];
+
+/* ═══════════════════════════════════════════════════════════
+   本機快取 — 慳 API 額度嘅關鍵
+   ═══════════════════════════════════════════════════════════ */
+const Cache = {
+  get(key, maxAgeMs){
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const o = JSON.parse(raw);
+      if (Date.now() - o.ts > maxAgeMs){ localStorage.removeItem(key); return null; }
+      return o.v;
+    } catch { return null; }
+  },
+  set(key, v){
+    try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), v })); }
+    catch {
+      // 空間爆咗：清走所有快取再試一次
+      try {
+        Object.keys(localStorage).filter(k => k.startsWith('eat:')).forEach(k => localStorage.removeItem(k));
+        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), v }));
+      } catch {}
+    }
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   工具
+   ═══════════════════════════════════════════════════════════ */
+const $ = s => document.querySelector(s);
+const el = (t, c) => { const e = document.createElement(t); if (c) e.className = c; return e; };
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+}
+
+// 兩點距離（公里）
+function distKm(a, b){
+  const R = 6371, rad = d => d * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function fmtDist(km){
+  return km < 1 ? Math.round(km * 1000) + ' 米' : km.toFixed(1) + ' 公里';
+}
+function stars(r){
+  const full = Math.round(r);
+  return '★'.repeat(full) + '☆'.repeat(5 - full);
+}
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   數據層 — 兩個 provider，介面一樣
+   ═══════════════════════════════════════════════════════════
+   餐廳物件格式：
+   { id, name, rating, reviewCount, lat, lng, address, priceLevel,
+     cuisine, emoji, openNow, phone, hours[], photoUrl, reviews[] }
+   reviews: [{ author, rating, text, when }]
+   ═══════════════════════════════════════════════════════════ */
+
+/* ---- A. 示範數據 provider ---- */
+const MockProvider = {
+  isDemo: true,
+  name: '示範數據',
+
+  async search(center, radiusKm){
+    await new Promise(r => setTimeout(r, 900)); // 扮載入
+
+    const seeds = [
+      ['華姐清湯腩','🍜','麵食 / 牛腩',4.7,2841,'$'],
+      ['添好運點心專門店','🥟','點心 / 粵菜',4.6,5210,'$$'],
+      ['一蘭拉麵','🍥','日本拉麵',4.5,3902,'$$'],
+      ['劉森記麵家','🍲','雲吞麵',4.6,1733,'$'],
+      ['翠華餐廳','☕','茶餐廳',4.1,4488,'$$'],
+      ['鏞記酒家','🦆','燒味 / 粵菜',4.4,2166,'$$$'],
+      ['坤記煲仔小菜','🍚','煲仔飯',4.7,1290,'$$'],
+      ['九記牛腩','🐮','牛腩麵',4.5,2077,'$'],
+      ['沾仔記','🍤','雲吞麵',4.4,1855,'$'],
+      ['澳洲牛奶公司','🥛','茶餐廳 / 甜品',4.3,6120,'$'],
+      ['鼎泰豐','🥠','上海菜 / 小籠包',4.6,4301,'$$$'],
+      ['天香樓','🐟','杭州菜',4.5,712,'$$$$'],
+      ['米線陣','🌶️','雲南米線',4.2,2540,'$'],
+      ['蘭芳園','🧋','茶餐廳 / 奶茶',4.2,3877,'$'],
+      ['太興燒味','🍗','燒味',4.0,5544,'$'],
+      ['明閣','🦞','粵菜 / 米芝蓮',4.7,988,'$$$$'],
+      ['甘牌燒鵝','🦢','燒鵝',4.6,1602,'$$'],
+      ['祥興咖啡室','🍞','冰室',4.4,1108,'$'],
+      ['義順牛奶公司','🍮','燉奶 / 甜品',4.3,2933,'$'],
+      ['潮福蒸氣火鍋','🍲','火鍋',4.4,1477,'$$'],
+      ['大班樓','🦐','創新粵菜',4.8,655,'$$$$'],
+      ['留家廚房','🥘','私房粵菜',4.6,842,'$$$'],
+      ['吉野家','🍛','日式丼飯',3.9,4021,'$'],
+      ['牛涮鍋','🥩','日式火鍋',4.3,1955,'$$'],
+      ['泰昌餅家','🥧','餅店 / 蛋撻',4.3,2688,'$'],
+      ['橋底辣蟹','🦀','海鮮',4.4,2311,'$$$'],
+      ['何洪記','🍜','粥麵',4.5,1966,'$$'],
+      ['南記粉麵','🍢','粉麵',4.1,1720,'$'],
+      ['蛇王芬','🐍','蛇羹 / 粵菜',4.5,930,'$$'],
+      ['慶記冰室','🍳','冰室',4.2,1188,'$'],
+      ['囍宴','🥂','中菜宴會',4.3,1055,'$$$'],
+      ['星記海鮮飯店','🐠','海鮮',4.4,1633,'$$$'],
+      ['南丫島天虹','🦑','海鮮',4.3,890,'$$$'],
+      ['焱鮨','🍣','壽司 Omakase',4.7,533,'$$$$'],
+      ['勝香園','🍅','大排檔',4.4,2410,'$'],
+      ['佳佳甜品','🍧','糖水',4.5,1877,'$'],
+      ['聰嫂星冰球','🍨','甜品',4.4,1322,'$'],
+      ['華御結','🍙','日式飯糰',4.0,1601,'$'],
+      ['牛大人','🐄','火鍋',4.2,1444,'$$'],
+      ['帝苑軒','🍽️','粵菜',4.6,777,'$$$$'],
+      ['金鳳茶餐廳','🥐','茶餐廳',4.2,2733,'$'],
+      ['海南少爺','🍗','海南雞飯',4.4,1210,'$$'],
+      ['池記','🥟','雲吞麵',4.0,3122,'$'],
+      ['再興燒臘','🍖','燒臘',4.5,2088,'$'],
+      ['興記煲仔飯','🍚','煲仔飯',4.3,1690,'$$'],
+      ['六安居','🫖','點心',4.2,1533,'$$'],
+      ['大喜屋','🍤','日本菜放題',4.3,2455,'$$$'],
+      ['安東尼意大利餐廳','🍝','意大利菜',4.5,911,'$$$'],
+      ['Bombay Dreams','🍛','印度菜',4.4,1366,'$$'],
+      ['Pici 意麵','🍝','意大利菜',4.5,1788,'$$'],
+      ['Beef & Liberty','🍔','漢堡',4.3,1622,'$$'],
+      ['Yardbird','🍢','日式串燒',4.6,2144,'$$$'],
+      ['Little Bao','🥯','創意小食',4.4,1290,'$$'],
+      ['Cafe Deco','🌆','西餐 / 景觀',4.1,1877,'$$$'],
+      ['Mak Man Kee','🍜','雲吞麵',4.4,1455,'$'],
+    ];
+
+    const revPool = [
+      ['湯底夠濃，牛腩腍身入味，行過都要幫襯。','食物質素好穩定，去咗好多次都冇失望過。','分量足，價錢合理，性價比高。'],
+      ['等位時間長咗少少，不過食完覺得值得。','出面睇落唔起眼，入到去先知咁多人排隊有原因。','伙記手腳快，唔會等太耐。'],
+      ['環境企理，適合同朋友食飯傾偈。','招牌菜真係好食，其他嘢就普普通通。','價錢略貴，但質素對得住個價。'],
+      ['一開門就爆滿，建議早少少去。','老字號嚟，味道幾十年冇變過。','食物新鮮，落單到上枱都幾快。'],
+      ['帶咗屋企人嚟食，佢哋都話好。','位置方便，出地鐵行幾分鐘就到。','服務態度好，會再嚟。'],
+      ['份量偏細，唔夠喉。','味道唔錯不過偏鹹，可以叫佢哋少鹽。','平日晏晝人少啲，好過週末迫。'],
+    ];
+    const authors = ['陳先生','Wing L.','阿 Ken','Mandy C.','食家老周','小明','Ricky T.','May 姐','Jason','細細粒','阿樂','Karen W.'];
+    const whens = ['1 星期前','2 星期前','1 個月前','2 個月前','3 個月前','半年前'];
+
+    // 用戶位置附近隨機散落
+    const rnd = (seed => () => (seed = seed * 16807 % 2147483647) / 2147483647)(42);
+    const out = seeds.map((s, i) => {
+      const [name, emoji, cuisine, rating, cnt, price] = s;
+      const ang = rnd() * Math.PI * 2;
+      const dist = Math.sqrt(rnd()) * radiusKm * 0.96;
+      const lat = center.lat + (dist / 111) * Math.cos(ang);
+      const lng = center.lng + (dist / (111 * Math.cos(center.lat * Math.PI/180))) * Math.sin(ang);
+      const pool = revPool[i % revPool.length];
+      return {
+        id: 'demo-' + i, name, emoji, cuisine, rating,
+        reviewCount: cnt, priceLevel: price, lat, lng,
+        address: '（示範地址）香港 · 距離約 ' + fmtDist(dist),
+        openNow: rnd() > 0.22,
+        phone: '（示範）+852 2xxx xxxx',
+        hours: ['星期一至五 11:00–22:00', '星期六日 10:00–23:00'],
+        photoUrl: null,
+        reviews: pool.map((t, k) => ({
+          author: authors[(i * 3 + k) % authors.length],
+          rating: Math.max(3, Math.min(5, Math.round(rating) - k % 2)),
+          text: t,
+          when: whens[(i + k) % whens.length],
+        })),
+      };
+    });
+
+    return out
+      .filter(r => distKm(center, r) <= radiusKm)
+      .sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount)
+      .slice(0, CONFIG.MAX_RESULTS);
+  },
+
+  async details(r){ return r; }, // 示範數據已經齊晒
+};
+
+/* ---- B. Google Places API (New) provider ---- */
+const GoogleProvider = {
+  isDemo: false,
+  name: 'Google Places',
+
+  async search(center, radiusKm){
+    // 位置四捨五入到約 200 米一格，行開少少都仲用返同一份快取
+    const cacheKey = `eat:search:${center.lat.toFixed(3)},${center.lng.toFixed(3)}:${radiusKm}`;
+    const hit = Cache.get(cacheKey, CONFIG.SEARCH_CACHE_MIN * 60000);
+    if (hit) return hit;
+
+    const LIST_FIELDS = [
+      'places.id','places.displayName','places.rating','places.userRatingCount',
+      'places.location','places.formattedAddress','places.priceLevel',
+      'places.primaryTypeDisplayName','places.currentOpeningHours.openNow','places.photos',
+      'nextPageToken',
+    ].join(',');
+
+    let all = [], pageToken = null;
+    for (let page = 0; page < 3 && all.length < CONFIG.MAX_RESULTS; page++){
+      const body = {
+        textQuery: '餐廳 restaurant',
+        includedType: 'restaurant',
+        languageCode: 'zh-HK',
+        regionCode: 'HK',
+        maxResultCount: 20,
+        locationBias: { circle: { center: { latitude: center.lat, longitude: center.lng }, radius: Math.min(radiusKm * 1000, 50000) } },
+      };
+      if (pageToken) body.pageToken = pageToken;
+
+      const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': CONFIG.GOOGLE_API_KEY,
+          'X-Goog-FieldMask': LIST_FIELDS,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Google API ' + res.status + '：' + (await res.text()).slice(0, 200));
+      const data = await res.json();
+      all = all.concat(data.places || []);
+      pageToken = data.nextPageToken;
+      if (!pageToken) break;
+      await new Promise(r => setTimeout(r, 1200)); // token 要少少時間生效
+    }
+
+    const priceMap = { PRICE_LEVEL_INEXPENSIVE:'$', PRICE_LEVEL_MODERATE:'$$', PRICE_LEVEL_EXPENSIVE:'$$$', PRICE_LEVEL_VERY_EXPENSIVE:'$$$$' };
+
+    const out = all
+      .filter(p => p.rating && p.location)
+      .map(p => ({
+        id: p.id,
+        name: p.displayName?.text || '（無名）',
+        rating: p.rating,
+        reviewCount: p.userRatingCount || 0,
+        lat: p.location.latitude,
+        lng: p.location.longitude,
+        address: p.formattedAddress || '',
+        priceLevel: priceMap[p.priceLevel] || '',
+        cuisine: p.primaryTypeDisplayName?.text || '餐廳',
+        emoji: '🍽️',
+        openNow: p.currentOpeningHours?.openNow,
+        photoUrl: p.photos?.[0]?.name
+          ? `https://places.googleapis.com/v1/${p.photos[0].name}/media?maxHeightPx=800&key=${CONFIG.GOOGLE_API_KEY}`
+          : null,
+        phone: null, hours: null, reviews: null, // 遲啲先攞（慳 API 錢）
+      }))
+      .filter(r => distKm(center, r) <= radiusKm)
+      .sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount)
+      .slice(0, CONFIG.MAX_RESULTS);
+
+    Cache.set(cacheKey, out);
+    return out;
+  },
+
+  async details(r){
+    if (r.reviews) return r; // 今個 session 攞過
+
+    // 上次開網頁攞過就唔使再 call（評論好少變，快取 30 日）
+    const ck = 'eat:rv:' + r.id;
+    const hit = Cache.get(ck, CONFIG.REVIEW_CACHE_DAYS * 864e5);
+    if (hit){ Object.assign(r, hit); return r; }
+
+    const FIELDS = 'reviews,nationalPhoneNumber,regularOpeningHours.weekdayDescriptions,websiteUri';
+    const res = await fetch(`https://places.googleapis.com/v1/places/${r.id}?languageCode=zh-HK&fields=${FIELDS}`, {
+      headers: { 'X-Goog-Api-Key': CONFIG.GOOGLE_API_KEY },
+    });
+    if (!res.ok) { r.reviews = []; return r; } // 失敗唔快取，下次可以再試
+    const d = await res.json();
+    const got = {
+      phone: d.nationalPhoneNumber || null,
+      hours: d.regularOpeningHours?.weekdayDescriptions || null,
+      website: d.websiteUri || null,
+      reviews: (d.reviews || []).slice(0, 5).map(v => ({
+        author: v.authorAttribution?.displayName || '匿名',
+        rating: v.rating,
+        text: (v.originalText?.text || v.text?.text || '').trim(),
+        when: v.relativePublishTimeDescription || '',
+      })).filter(v => v.text),
+    };
+    Cache.set(ck, got);
+    Object.assign(r, got);
+    return r;
+  },
+};
+
+/* ---- C. OpenStreetMap / Overture provider（Overpass API）----
+   完全免費、唔使 key、唔使信用卡。代價：冇評分、冇評論、冇相片。
+   所以排序係按距離（或者隨機），唔係按星級。
+   右掃就跳去 Google Maps 睇星級同評論（跳出去唔使錢）。            */
+const OsmProvider = {
+  isDemo: false,
+  name: 'OpenStreetMap',
+  noRatings: true,
+
+  async search(center, radiusKm){
+    const cacheKey = `eat:osm:${center.lat.toFixed(3)},${center.lng.toFixed(3)}:${radiusKm}`;
+    const hit = Cache.get(cacheKey, CONFIG.SEARCH_CACHE_MIN * 60000);
+    if (hit) return hit;
+
+    const r = Math.round(radiusKm * 1000);
+    const near = `(around:${r},${center.lat},${center.lng})`;
+    // 注意：唔可以用 ~"^(a|b)$" 呢種正則 —— Overpass 前面個 Apache WAF 會當攻擊擋咗（406）。
+    // 所以逐個 amenity 分開寫，用 union 併埋。
+    const q = '[out:json][timeout:45];('
+      + ['restaurant', 'fast_food', 'cafe']
+          .flatMap(a => [`node["amenity"="${a}"]["name"]${near};`,
+                         `way["amenity"="${a}"]["name"]${near};`])
+          .join('')
+      + ');out center 400;';
+
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(q),
+    });
+    if (!res.ok) throw new Error(res.status === 429
+      ? 'Overpass 公共伺服器而家好忙（429），等半分鐘再試'
+      : 'Overpass ' + res.status + '（免費公共伺服器，偶爾會唔穩定）');
+    const data = await res.json();
+
+    const out = (data.elements || []).map(e => {
+      const t = e.tags || {};
+      const lat = e.lat ?? e.center?.lat, lng = e.lon ?? e.center?.lon;
+      if (lat == null || lng == null) return null;
+      const name = t['name:zh'] || t.name || t['name:en'];
+      if (!name) return null;
+      const cuisine = osmCuisine(t);
+      return {
+        id: 'osm-' + e.type + '-' + e.id,
+        name,
+        rating: null,           // OSM 冇評分
+        reviewCount: 0,
+        lat, lng,
+        address: [t['addr:housenumber'], t['addr:street'], t['addr:district']].filter(Boolean).join(' ') || '',
+        priceLevel: '',
+        cuisine: cuisine.label,
+        emoji: cuisine.emoji,
+        openNow: undefined,     // OSM 得 opening_hours 字串，唔準確解析
+        phone: t.phone || t['contact:phone'] || null,
+        hours: t.opening_hours ? [t.opening_hours] : null,
+        website: t.website || t['contact:website'] || null,
+        photoUrl: null,
+        reviews: [],            // 冇評論，右掃跳出去睇
+        // 唔少香港 OSM 記錄帶住 OpenRice 店舖編號，可以直達佢個餐廳頁
+        openriceId: (t['ref:openrice'] || '').split(';')[0].trim() || null,
+      };
+    }).filter(Boolean);
+
+    // 冇星級 → 按距離排（近嘅先）
+    out.sort((a, b) => distKm(center, a) - distKm(center, b));
+    const sliced = out.slice(0, CONFIG.MAX_RESULTS);
+    Cache.set(cacheKey, sliced);
+    return sliced;
+  },
+
+  async details(r){ return r; }, // 冇嘢再攞
+};
+
+// OSM 嘅 cuisine tag → 中文名 + emoji
+function osmCuisine(t){
+  const c = (t.cuisine || '').split(';')[0].toLowerCase();
+  const map = {
+    chinese:['中菜','🥢'], cantonese:['粵菜','🍚'], dim_sum:['點心','🥟'],
+    noodle:['粉麵','🍜'], ramen:['拉麵','🍥'], japanese:['日本菜','🍣'],
+    sushi:['壽司','🍣'], korean:['韓國菜','🍲'], thai:['泰國菜','🍛'],
+    vietnamese:['越南菜','🍲'], indian:['印度菜','🍛'], italian:['意大利菜','🍝'],
+    pizza:['薄餅','🍕'], burger:['漢堡','🍔'], american:['美式','🍔'],
+    french:['法國菜','🥐'], spanish:['西班牙菜','🥘'], mexican:['墨西哥菜','🌮'],
+    seafood:['海鮮','🦐'], bbq:['燒烤','🍖'], hotpot:['火鍋','🍲'],
+    steak_house:['扒房','🥩'], vegetarian:['素食','🥗'], vegan:['純素','🥗'],
+    coffee_shop:['咖啡店','☕'], cafe:['咖啡店','☕'], dessert:['甜品','🍰'],
+    bakery:['餅店','🥐'], ice_cream:['雪糕','🍨'], sandwich:['三文治','🥪'],
+    chicken:['雞','🍗'], asian:['亞洲菜','🍜'], international:['多國菜','🍽️'],
+  };
+  if (map[c]) return { label: map[c][0], emoji: map[c][1] };
+  const byAmenity = { cafe:['咖啡店','☕'], fast_food:['快餐','🍟'], restaurant:['餐廳','🍽️'] };
+  const a = byAmenity[t.amenity] || ['餐廳','🍽️'];
+  return { label: a[0], emoji: a[1] };
+}
+
+function pickProvider(){
+  if (CONFIG.DATA_SOURCE === 'mock')   return MockProvider;
+  if (CONFIG.DATA_SOURCE === 'osm')    return OsmProvider;
+  if (CONFIG.DATA_SOURCE === 'google') return GoogleProvider;
+  return CONFIG.GOOGLE_API_KEY ? GoogleProvider : MockProvider;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   App 狀態
+   ═══════════════════════════════════════════════════════════ */
+const S = {
+  center: null,
+  stationName: null,   // 有值 = 用港鐵站做中心
+  radiusKm: 5,
+  list: [],
+  idx: 0,
+  provider: MockProvider,
+  history: [],
+};
+
+/* ═══════════════════════════════════════════════════════════
+   卡片渲染 + swipe
+   ═══════════════════════════════════════════════════════════ */
+const deck = $('#deck');
+
+function renderDeck(){
+  deck.innerHTML = '';
+  const slice = S.list.slice(S.idx, S.idx + 3).reverse(); // 底 → 面
+  slice.forEach((r, i) => {
+    const depth = slice.length - 1 - i; // 0 = 最面
+    const card = buildCard(r, S.list.indexOf(r) + 1, depth === 0);
+    card.style.transform = `translateY(${depth * -9}px) scale(${1 - depth * 0.04})`;
+    card.style.zIndex = 10 - depth;
+    card.style.opacity = depth > 1 ? '0.7' : '1';
+    if (depth === 0) attachSwipe(card, r);
+    deck.appendChild(card);
+  });
+  updateCounter();
+  if (S.idx >= S.list.length) show('s-end');
+}
+
+function buildCard(r, rank, isTop){
+  const card = el('div', 'card');
+  const noRatings = S.provider.noRatings;
+  // 冇星級（OSM）就唔會有評論預覽，右掃直接跳 Google Maps
+  const wantPreview = CONFIG.PREVIEW_REVIEWS && isTop && !noRatings;
+  const openTxt = r.openNow === true ? '營業中' : r.openNow === false ? '休息中' : '';
+  const openCls = r.openNow === true ? 'open' : r.openNow === false ? 'shut' : '';
+  const d = fmtDist(distKm(S.center, r));
+  const hasReviewBlock = wantPreview || (r.reviews && r.reviews.length);
+
+  card.innerHTML = `
+    <div class="stamp no">跳過</div>
+    <div class="stamp yes">${{ openrice:'開飯喇', gmaps:'睇 Google', sheet:'睇詳情' }[rightAction()]}</div>
+    <div class="photo">
+      <div class="rank">${noRatings ? `📍 第 ${rank} 近` : `🔥 全區第 ${rank} 名`}</div>
+      ${openTxt ? `<div class="openbadge ${openCls}">${openTxt}</div>` : ''}
+      ${r.photoUrl ? `<img src="${esc(r.photoUrl)}" alt="" loading="lazy" onerror="this.remove()">` : `<span>${r.emoji || '🍽️'}</span>`}
+      <div class="cardinfo">
+        <div class="nm">${esc(r.name)}</div>
+        <div class="metarow">
+          ${r.rating != null ? `<span class="tag star">★ ${r.rating.toFixed(1)}</span>` : ''}
+          <span class="tag near">📍 ${d}</span>
+          <span class="tag">${esc(r.cuisine || '餐廳')}</span>
+          ${r.priceLevel ? `<span class="tag">${r.priceLevel}</span>` : ''}
+          ${r.reviewCount ? `<span class="tag">${r.reviewCount.toLocaleString()} 則評價</span>` : ''}
+          ${(rightAction() === 'openrice' && r.openriceId) ? '<span class="tag or">🍚 開飯喇有得睇</span>' : ''}
+        </div>
+      </div>
+    </div>
+    ${hasReviewBlock ? `
+    <div class="reviews" data-rv="${esc(r.id)}">
+      <div class="rvhead">熱門評論</div>
+      ${r.reviews ? renderMiniReviews(r.reviews) : '<div class="rvskel"></div><div class="rvskel" style="width:80%"></div>'}
+    </div>` : ''}`;
+
+  // 只有最面嗰張、而且未攞過評論，先至去 call API（背後嗰兩張唔預先攞，慳額度）
+  if (wantPreview && !r.reviews){
+    S.provider.details(r).then(() => {
+      const box = deck.querySelector(`[data-rv="${CSS.escape(r.id)}"]`);
+      if (box) box.innerHTML = '<div class="rvhead">熱門評論</div>' + renderMiniReviews(r.reviews);
+    }).catch(() => {});
+  }
+  return card;
+}
+
+function renderMiniReviews(revs){
+  if (!revs || !revs.length) return '<div class="rv"><div class="tx" style="color:#9992a8">暫時未有文字評論</div></div>';
+  return revs.slice(0, 3).map(v =>
+    `<div class="rv"><div class="s">${stars(v.rating)}</div><div class="tx">${esc(v.text)}</div></div>`
+  ).join('');
+}
+
+/* ---- 拖曳 ---- */
+function attachSwipe(card, r){
+  let sx = 0, sy = 0, dx = 0, dy = 0, dragging = false, locked = null;
+  const noS = card.querySelector('.stamp.no'), yesS = card.querySelector('.stamp.yes');
+
+  const down = e => {
+    dragging = true; locked = null;
+    const p = e.touches ? e.touches[0] : e;
+    sx = p.clientX; sy = p.clientY;
+    card.style.transition = 'none';
+  };
+  const move = e => {
+    if (!dragging) return;
+    const p = e.touches ? e.touches[0] : e;
+    dx = p.clientX - sx; dy = p.clientY - sy;
+    if (locked === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6))
+      locked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (locked !== 'x') return;
+    if (e.cancelable) e.preventDefault();
+    card.style.transform = `translate(${dx}px, ${dy * 0.25}px) rotate(${dx * 0.055}deg)`;
+    const o = Math.min(Math.abs(dx) / 110, 1);
+    noS.style.opacity  = dx < 0 ? o : 0;
+    yesS.style.opacity = dx > 0 ? o : 0;
+  };
+  const up = () => {
+    if (!dragging) return;
+    dragging = false;
+    card.style.transition = 'transform .32s cubic-bezier(.22,1,.36,1)';
+    if (locked === 'x' && Math.abs(dx) > 95){
+      dx > 0 ? swipeRight(card, r) : swipeLeft(card);
+    } else {
+      card.style.transform = 'translate(0,0) rotate(0)';
+      noS.style.opacity = yesS.style.opacity = 0;
+    }
+    dx = dy = 0;
+  };
+
+  card.addEventListener('touchstart', down, {passive:true});
+  card.addEventListener('touchmove', move, {passive:false});
+  card.addEventListener('touchend', up);
+  card.addEventListener('touchcancel', up);
+  card.addEventListener('mousedown', down);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+let animating = false;
+
+function swipeLeft(card){
+  if (animating || S.idx >= S.list.length) return;
+  card = card || deck.querySelector('.card:last-child');
+  if (!card) return;
+  animating = true;
+  card.style.transition = 'transform .35s ease-in, opacity .35s';
+  card.style.transform = 'translate(-140%, 60px) rotate(-24deg)';
+  card.style.opacity = '0';
+  S.history.push(S.idx);
+  S.idx++;
+  setTimeout(() => { animating = false; renderDeck(); }, 250);
+}
+
+// 右掃實際會做乜。OSM 模式冇星冇評論，app 內詳情頁冇嘢好睇，所以一定跳出去。
+function rightAction(){
+  const a = CONFIG.SWIPE_RIGHT_ACTION;
+  if (a === 'gmaps' || a === 'openrice') return a;
+  return S.provider.noRatings ? 'gmaps' : 'sheet';
+}
+function goesToMaps(){ return rightAction() !== 'sheet'; }
+
+function swipeRight(card, r){
+  card = card || deck.querySelector('.card:last-child');
+  r = r || S.list[S.idx];
+  if (!card || !r) return;
+  card.style.transform = 'translate(0,0) rotate(0)';
+  card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0);
+  const a = rightAction();
+  if (a === 'openrice') openOpenRice(r);
+  else if (a === 'gmaps') openMap(r);
+  else openSheet(r);
+}
+
+// 跳去 OpenRice。有店舖編號就直達嗰間，冇就跳去搜尋結果。
+function openOpenRice(r){
+  r = r || S.list[S.idx];
+  if (!r) return;
+  const url = r.openriceId
+    ? `https://www.openrice.com/zh/hongkong/r-x-r${encodeURIComponent(r.openriceId)}`
+    : `https://www.openrice.com/zh/hongkong/restaurants?what=${encodeURIComponent(r.name)}`;
+  window.open(url, '_blank');
+}
+
+function undo(){
+  if (animating || !S.history.length) return;
+  S.idx = S.history.pop();
+  renderDeck();
+}
+
+function updateCounter(){
+  $('#counter').textContent = Math.min(S.idx + 1, S.list.length) + ' / ' + S.list.length;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   詳情 sheet
+   ═══════════════════════════════════════════════════════════ */
+let sheetTarget = null;
+
+async function openSheet(r){
+  sheetTarget = r;
+  const sc = $('#sheetScroll');
+  const d = fmtDist(distKm(S.center, r));
+
+  sc.innerHTML = `
+    <h3>${esc(r.name)}</h3>
+    <div style="color:var(--muted);font-size:14px;margin-bottom:4px">${esc(r.cuisine || '餐廳')}${r.priceLevel ? ' · ' + r.priceLevel : ''}</div>
+    <div class="bigstat">
+      <div class="bs"><div class="n" style="color:var(--accent2)">${r.rating != null ? '★ ' + r.rating.toFixed(1) : '—'}</div><div class="l">平均評分</div></div>
+      <div class="bs"><div class="n">${(r.reviewCount || 0).toLocaleString()}</div><div class="l">評價數目</div></div>
+      <div class="bs"><div class="n">${d}</div><div class="l">距離你</div></div>
+    </div>
+    <div class="secttl">餐廳資料</div>
+    <div class="kv"><div class="k">📍</div><div class="v">${esc(r.address || '未有地址')}</div></div>
+    ${r.phone ? `<div class="kv"><div class="k">📞</div><div class="v"><a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></div></div>` : ''}
+    ${r.hours ? `<div class="kv"><div class="k">🕒</div><div class="v">${r.hours.map(esc).join('<br>')}</div></div>` : ''}
+    ${r.website ? `<div class="kv"><div class="k">🌐</div><div class="v"><a href="${esc(r.website)}" target="_blank" rel="noopener">餐廳網站</a></div></div>` : ''}
+    <div class="secttl">食客評論</div>
+    <div id="fullRv"><div class="rvskel"></div><div class="rvskel" style="width:70%"></div></div>`;
+
+  $('#sheet').classList.add('on');
+
+  try { await S.provider.details(r); } catch(e){ r.reviews = r.reviews || []; }
+  const box = $('#fullRv');
+  if (!box) return;
+  box.innerHTML = (r.reviews && r.reviews.length)
+    ? r.reviews.map(v => `
+        <div class="frv">
+          <div class="top">
+            <div class="av">${esc((v.author || '?').trim()[0] || '?')}</div>
+            <div><div class="who">${esc(v.author)}</div><div class="when">${stars(v.rating)} · ${esc(v.when)}</div></div>
+          </div>
+          <div class="body">${esc(v.text)}</div>
+        </div>`).join('')
+    : '<div style="color:var(--muted);font-size:14px">呢間餐廳暫時未有文字評論。</div>';
+}
+
+function closeSheet(){ $('#sheet').classList.remove('on'); }
+
+function openMap(r){
+  r = r || S.list[S.idx];
+  if (!r) return;
+  // 有 Google place id 就直接開返嗰間；OSM／示範數據就用「名 + 座標」喺附近搵
+  const isGoogleId = !r.id.startsWith('demo-') && !r.id.startsWith('osm-');
+  const url = isGoogleId
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name)}&query_place_id=${encodeURIComponent(r.id)}`
+    : `https://www.google.com/maps/search/${encodeURIComponent(r.name)}/@${r.lat},${r.lng},17z`;
+  window.open(url, '_blank');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   流程
+   ═══════════════════════════════════════════════════════════ */
+function getLocation(){
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('你部瀏覽器唔支援定位'));
+
+    // 瀏覽器規定：只有 https（或者 localhost）先俾定位。
+    // 直接雙擊開個檔係 file://，一定會失敗，唔關個 app 事。
+    const secure = window.isSecureContext || location.protocol === 'https:';
+    if (!secure) return reject(new Error(
+      '你而家係直接開緊個檔案（file://），瀏覽器規定咁樣唔俾用 GPS。\n' +
+      '放咗上網（https）就會正常。而家可以改用「揀港鐵站」。'
+    ));
+
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      e => reject(new Error(
+        e.code === 1 ? '你拒絕咗位置權限。可以喺瀏覽器設定開返，或者改用「揀港鐵站」。'
+      : e.code === 2 ? '搵唔到你嘅位置，室內信號可能較弱。試下「揀港鐵站」。'
+      : '定位超時。試下「揀港鐵站」，仲快。')),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  });
+}
+
+$('#btnStart').onclick = async () => {
+  const b = $('#btnStart');
+  b.disabled = true; b.textContent = '定位緊…';
+  try {
+    S.center = await getLocation();
+    S.stationName = null;
+    S.provider = pickProvider();
+    $('#locChip').textContent = '📍 已鎖定你嘅位置';
+    show('s-dist');
+  } catch (err) {
+    showIntroError(err.message);
+  } finally {
+    b.disabled = false; b.textContent = '📍 用我而家嘅位置';
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════
+   揀港鐵站
+   ═══════════════════════════════════════════════════════════ */
+let lineSel = -1;   // -1 = 全部線路
+
+function recentStations(){
+  return Cache.get('eat:recentStn', 365 * 864e5) || [];
+}
+function pushRecent(name){
+  const list = [name, ...recentStations().filter(n => n !== name)].slice(0, 5);
+  Cache.set('eat:recentStn', list);
+}
+
+function buildLineFilter(){
+  const wrap = $('#lineFilter');
+  wrap.innerHTML = '';
+  const mk = (label, idx, colour) => {
+    const b = el('button', 'lf' + (lineSel === idx ? ' sel' : ''));
+    b.innerHTML = colour ? `<span class="dot" style="background:${colour}"></span>${label}` : label;
+    if (lineSel === idx && colour) b.style.background = colour;
+    b.onclick = () => { lineSel = idx; buildLineFilter(); renderStations(); };
+    wrap.appendChild(b);
+  };
+  mk('全部', -1, null);
+  MTR_LINES.forEach(([name, colour], i) => mk(name, i, colour));
+}
+
+function renderStations(){
+  const q = $('#mtrSearch').value.trim().toLowerCase();
+  $('#mtrClear').classList.toggle('on', !!q);
+  const box = $('#stationList');
+  box.innerHTML = '';
+
+  const match = s =>
+    (lineSel === -1 || s[3].includes(lineSel)) &&
+    (!q || s[0].toLowerCase().includes(q));
+  const hits = MTR_STATIONS.filter(match);
+
+  if (!hits.length){
+    box.innerHTML = `<div class="empty">搵唔到「${esc(q)}」<br>試下打少幾個字？</div>`;
+    return;
+  }
+
+  const stnBtn = (s, isRecent) => {
+    const b = el('button', 'stn' + (isRecent ? ' recent' : ''));
+    const bars = s[3].map(i => `<div class="bar" style="background:${MTR_LINES[i][1]}"></div>`).join('');
+    const lines = s[3].map(i => MTR_LINES[i][0]).join(' · ');
+    b.innerHTML = `<div class="bars">${bars}</div>
+      <div class="nm">${esc(s[0])}<div class="ln">${lines}</div></div>
+      <div class="go">›</div>`;
+    b.onclick = () => chooseStation(s);
+    return b;
+  };
+
+  // 最近揀過（冇搜尋、冇篩線路先顯示）
+  const recents = recentStations();
+  if (!q && lineSel === -1 && recents.length){
+    const hd = el('div', 'grouphd'); hd.textContent = '最近揀過';
+    box.appendChild(hd);
+    recents.forEach(n => {
+      const s = MTR_STATIONS.find(x => x[0] === n);
+      if (s) box.appendChild(stnBtn(s, true));
+    });
+  }
+
+  if (q){
+    // 搜尋緊：平坦列表，每個站只出現一次（唔按線分組，否則轉車站會重複）
+    const hd = el('div', 'grouphd');
+    hd.textContent = `搵到 ${hits.length} 個站`;
+    box.appendChild(hd);
+    hits.forEach(s => box.appendChild(stnBtn(s)));
+  } else if (lineSel === -1){
+    // 冇篩線路：按線路分組，轉車站會喺多組出現（同真港鐵圖一樣）
+    MTR_LINES.forEach(([lname], li) => {
+      const inLine = hits.filter(s => s[3].includes(li));
+      if (!inLine.length) return;
+      const hd = el('div', 'grouphd');
+      hd.innerHTML = `<span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${MTR_LINES[li][1]};margin-right:7px"></span>${lname}`;
+      box.appendChild(hd);
+      inLine.forEach(s => box.appendChild(stnBtn(s)));
+    });
+  } else {
+    const hd = el('div', 'grouphd');
+    hd.textContent = MTR_LINES[lineSel][0] + ' · ' + hits.length + ' 個站';
+    box.appendChild(hd);
+    hits.forEach(s => box.appendChild(stnBtn(s)));
+  }
+}
+
+function chooseStation(s){
+  pushRecent(s[0]);
+  S.center = { lat: s[1], lng: s[2] };
+  S.stationName = s[0];
+  S.provider = pickProvider();
+  $('#locChip').textContent = `🚇 ${s[0]}站`;
+  show('s-dist');
+}
+
+$('#btnMtr').onclick = () => {
+  lineSel = -1;
+  $('#mtrSearch').value = '';
+  buildLineFilter();
+  renderStations();
+  show('s-mtr');
+};
+$('#mtrSearch').oninput = renderStations;
+$('#mtrClear').onclick = () => { $('#mtrSearch').value = ''; renderStations(); $('#mtrSearch').focus(); };
+
+$('#btnDemo').onclick = () => {
+  S.center = { lat: 22.2819, lng: 114.1583 }; // 中環
+  S.stationName = null;
+  S.provider = MockProvider;
+  $('#locChip').textContent = '🧪 示範模式 · 假設你喺中環';
+  show('s-dist');
+};
+
+function showIntroError(msg){
+  let box = $('#introErr');
+  if (!box){
+    box = el('div', 'err'); box.id = 'introErr';
+    $('#btnDemo').after(box);
+  }
+  box.innerHTML = '⚠️ ' + esc(msg).replace(/\n/g, '<br>')
+    + '<br><button class="btn" id="errToMtr" style="margin-top:12px;padding:11px 24px;font-size:14px">🚇 改用揀港鐵站</button>';
+  $('#errToMtr').onclick = () => $('#btnMtr').click();
+}
+
+// 由邊度入到距離畫面，返回就返去邊度
+$('#btnBackIntro').onclick = () => show(S.stationName ? 's-mtr' : 's-intro');
+$('#btnMtrBack').onclick = () => show('s-intro');
+
+document.querySelectorAll('.dist').forEach(b => {
+  b.onclick = async () => {
+    document.querySelectorAll('.dist').forEach(x => x.classList.toggle('sel', x === b));
+    S.radiusKm = +b.dataset.km;
+    await runSearch();
+  };
+});
+
+async function runSearch(){
+  show('s-load');
+  $('#loadTxt').textContent = S.provider.noRatings
+    ? `喺 ${S.radiusKm} 公里內搵緊餐廳…（免費地圖數據，可能慢少少）`
+    : `喺 ${S.radiusKm} 公里內搵緊高分餐廳…`;
+  try {
+    S.list = await S.provider.search(S.center, S.radiusKm);
+    S.idx = 0; S.history = []; animating = false;
+    if (!S.list.length){
+      $('#endTxt').textContent = `${S.radiusKm} 公里內搵唔到餐廳，試下擴大範圍。`;
+      show('s-end');
+      return;
+    }
+    updateHints();
+    renderDeck();
+    show('s-swipe');
+  } catch (err) {
+    $('#endTxt').textContent = '搵餐廳出咗事：' + err.message;
+    show('s-end');
+  }
+}
+
+function updateHints(){
+  const right = { openrice:'開 OpenRice', gmaps:'開 Google Maps', sheet:'睇詳情' }[rightAction()];
+  let html = `← 左掃 下一間　·　右掃 ${right} →`;
+  if (S.provider.isDemo)
+    html += '<br><span class="demo-tag">🧪 示範數據 · 唔係真實餐廳</span>';
+  else if (S.provider.noRatings){
+    const n = S.list.filter(r => r.openriceId).length;
+    html += rightAction() === 'openrice'
+      ? `<br><span class="demo-tag">🗺️ OpenStreetMap · 按距離排 · ${n} 間有開飯喇直達</span>`
+      : '<br><span class="demo-tag">🗺️ OpenStreetMap · 按距離排 · 星級去 Google 睇</span>';
+  }
+  $('#swipeHint').innerHTML = html;
+}
+
+$('#btnNo').onclick   = () => swipeLeft();
+$('#btnYes').onclick  = () => swipeRight();
+$('#btnUndo').onclick = undo;
+$('#btnMap').onclick  = () => openMap();
+$('#btnReset').onclick = () => show('s-dist');
+$('#btnAgain').onclick = () => show('s-dist');
+$('#sheetClose').onclick = closeSheet;
+$('#sheetNav').onclick = () => openMap(sheetTarget);
+$('#sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
+
+// 鍵盤（電腦用）
+document.addEventListener('keydown', e => {
+  if (!$('#s-swipe').classList.contains('on')) return;
+  if ($('#sheet').classList.contains('on')){
+    if (e.key === 'Escape') closeSheet();
+    return;
+  }
+  if (e.key === 'ArrowLeft')  swipeLeft();
+  if (e.key === 'ArrowRight') swipeRight();
+  if (e.key === 'ArrowDown')  undo();
+});
+</script>
+</body>
+</html>
