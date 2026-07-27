@@ -1,5 +1,10 @@
 # 🍜 今餐食乜
 
+**已上線：https://ljackylau.github.io/eat-what/**
+
+喺 iPhone Safari 開個網址 → 分享 → **加入主畫面**，就好似個真 app 咁。
+線上版係 https，所以 GPS 定位正常用得。
+
 Tinder 式揀餐廳 web app。定位 → 揀距離 → 掃卡片。
 左掃 = 下一間，右掃 = 睇詳情（評分、距離、熱門評論、地址、電話、營業時間、一鍵導航）。
 
@@ -41,8 +46,12 @@ Tinder 式揀餐廳 web app。定位 → 揀距離 → 掃卡片。
 
 數據離線嵌喺 `index.html` 入面（3.5KB），唔使 call 任何 API。
 
-⚠️ 而家用緊 **示範數據**（55 間香港餐廳，評分同評論都係假嘅，只係示範個界面）。
-要真實數據，跟下面步驟插 Google API key。
+**預設用緊 OpenStreetMap 真實餐廳數據** —— 唔使 key、唔使信用卡，開箱即用。
+代價係 OSM 冇星級冇評論，所以係按距離排，卡片只有名、距離、菜系，右掃跳去 OpenRice 睇評分。
+
+想要星級 Top 50 排名、餐廳相片、卡片直接見到評論，就要插 Google API key（下面教）。
+
+示範數據（假餐廳）而家淨係喺你明確撳「🧪 示範模式試玩」先會出現。
 
 ---
 
@@ -185,12 +194,13 @@ SWIPE_RIGHT_ACTION: 'gmaps',   // 或者 'openrice'
 
 實際用量：一日兩餐 + 6 個鐘快取 ≈ 每月幾十次搜尋 call，**穩穩陣陣喺 1,000 免費額度內**。
 
-### 🅾️ 完全免費，一蚊都唔使畀
+### 🅾️ 完全免費，一蚊都唔使畀（**而家嘅預設**）
 
 ```js
-DATA_SOURCE: 'osm',
-SWIPE_RIGHT_ACTION: 'openrice',   // 或者 'gmaps'
+DATA_SOURCE: 'auto',   // 冇 Google key → 自動用 OSM
 ```
+右掃會自動跳 OpenRice（因為 OSM 冇星冇評論，app 內冇嘢好顯示）。
+想跳 Google Maps 就設 `SWIPE_RIGHT_ACTION: 'gmaps'`。
 用 OpenStreetMap（免費、唔使 key、唔使信用卡、唔使 Google Cloud 戶口），
 右掃跳去 OpenRice 睇評分同食評。
 
